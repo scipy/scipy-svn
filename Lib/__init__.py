@@ -39,4 +39,6 @@ from interpolation import *
 from measurements import *
 from morphology import *
 
+from numpy.testing import ScipyTest
+test = ScipyTest().test
 #from test import test
