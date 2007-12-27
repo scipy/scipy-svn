@@ -1,40 +1,148 @@
 """general tests and simple benchmarks for the sparse module"""
 
 import numpy
-from numpy import ones
+from numpy import ones, array, asarray, empty
 
 import random
 from numpy.testing import *
 set_package_path()
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, \
-        coo_matrix, lil_matrix, dia_matrix, spidentity, spdiags
+        coo_matrix, lil_matrix, dia_matrix, spidentity, spdiags, \
+        spkron
 from scipy.linsolve import splu
 restore_path()
 
+def random_sparse(m,n,nnz_per_row):
+    rows = numpy.arange(m).repeat(nnz_per_row)
+    cols = numpy.random.random_integers(low=0,high=n-1,size=nnz_per_row*m)
+    vals = numpy.random.random_sample(m*nnz_per_row)
+    return coo_matrix((vals,(rows,cols)),(m,n)).tocsr()
 
-def poisson2d(N,epsilon=1.0):
+
+#TODO move this to a matrix gallery and add unittests
+def poisson2d(N,dtype='d',format=None):
     """
-    Return a sparse CSR matrix for the 2d poisson problem
+    Return a sparse matrix for the 2d poisson problem
     with standard 5-point finite difference stencil on a
     square N-by-N grid.
     """
+    if N == 1:
+        diags   = asarray( [[4]],dtype=dtype)
+        return dia_matrix((diags,[0]), shape=(1,1)).asformat(format)
 
-    D = (2 + 2*epsilon)*ones(N*N)
-    T =  -epsilon * ones(N*N)
-    O =  -ones(N*N)
-    T[N-1::N] = 0
-    return spdiags([D,O,T,T,O],[0,-N,-1,1,N],N*N,N*N).tocoo().tocsr() #eliminate explicit zeros
+    offsets = array([0,-N,N,-1,1])
 
+    diags = empty((5,N**2),dtype=dtype)
+
+    diags[0]  =  4 #main diagonal
+    diags[1:] = -1 #all offdiagonals
+
+    diags[3,N-1::N] = 0  #first lower diagonal
+    diags[4,N::N] = 0  #first upper diagonal
+
+    return dia_matrix((diags,offsets),shape=(N**2,N**2)).asformat(format)
 
 import time
 class TestSparseTools(NumpyTestCase):
     """Simple benchmarks for sparse matrix module"""
 
-    def test_matvec(self,level=5):
+    def test_arithmetic(self,level=4):
         matrices = []
-        matrices.append(('Identity', spidentity(10**5,format='csr')))
-        matrices.append(('Poisson5pt', poisson2d(1000)))
-        matrices.append(('Poisson5pt', dia_matrix(poisson2d(1000))))
+        #matrices.append( ('A','Identity', spidentity(500**2,format='csr')) )
+        matrices.append( ('A','Poisson5pt', poisson2d(500,format='csr'))  )
+        matrices.append( ('B','Poisson5pt^2', poisson2d(500,format='csr')**2)  )
+   
+        print
+        print '                 Sparse Matrix Arithmetic'
+        print '===================================================================='
+        print ' var |     name       |         shape        |   dtype   |    nnz   '
+        print '--------------------------------------------------------------------'
+        fmt = '  %1s  | %14s | %20s | %9s | %8d '
+
+        for var,name,mat in matrices:
+            name  = name.center(14)
+            shape = ("%s" % (mat.shape,)).center(20)
+            dtype = mat.dtype.name.center(9)
+            print fmt % (var,name,shape,dtype,mat.nnz)
+
+        space = ' ' * 10 
+        print
+        print space+'              Timings'
+        print space+'=========================================='
+        print space+' format |     operation     | time (msec) '
+        print space+'------------------------------------------'
+        fmt = space+'   %3s  | %17s |  %7.1f  '
+
+        for format in ['csr']:
+            vars = dict( [(var,mat.asformat(format)) for (var,name,mat) in matrices ] )
+            for X,Y in [ ('A','A'),('A','B'),('B','A'),('B','B') ]:
+                x,y = vars[X],vars[Y]
+                #for op in ['__add__','__sub__','multiply','__div__','__mul__']:
+                for op in ['__mul__']:
+                    fn = getattr(x,op)
+                    fn(y) #warmup
+
+                    start = time.clock()
+                    iter = 0
+                    while iter < 5 or time.clock() < start + 1:
+                        fn(y)
+                        iter += 1
+                    end = time.clock()
+
+                    msec_per_it = 1000*(end - start)/float(iter)
+                    operation = (X + '.' + op + '(' + Y + ')').center(17)
+                    print fmt % (format,operation,msec_per_it)
+
+  
+
+    def bench_sort(self,level=5):
+        """sort CSR column indices"""
+        matrices = []
+        matrices.append( ('Rand10',  1e4,  10) )
+        matrices.append( ('Rand25',  1e4,  25) )
+        matrices.append( ('Rand50',  1e4,  50) )
+        matrices.append( ('Rand100', 1e4, 100) )
+        matrices.append( ('Rand200', 1e4, 200) )
+
+        print
+        print '                    Sparse Matrix Index Sorting'
+        print '====================================================================='
+        print ' type |    name      |         shape        |    nnz   | time (msec) '
+        print '---------------------------------------------------------------------'
+        fmt = '  %3s | %12s | %20s | %8d |   %6.2f  '
+
+        for name,N,K in matrices:
+            N = int(N) 
+            A = random_sparse(N,N,K)
+            
+            start = time.clock()
+            iter = 0
+            while iter < 5 and time.clock() - start < 1:
+                A.sort_indices(check_first =False) 
+                iter += 1
+            end = time.clock()
+
+            name = name.center(12)
+            shape = ("%s" % (A.shape,)).center(20)
+
+            print fmt % (A.format,name,shape,A.nnz,1e3*(end-start)/float(iter) )
+
+
+    def bench_matvec(self,level=5):
+        matrices = []
+        matrices.append(('Identity',   spidentity(10**4,format='dia')))
+        matrices.append(('Identity',   spidentity(10**4,format='csr')))
+        matrices.append(('Poisson5pt', poisson2d(300,format='dia')))
+        matrices.append(('Poisson5pt', poisson2d(300,format='csr')))
+        matrices.append(('Poisson5pt', poisson2d(300,format='bsr')))
+
+        A = spkron(poisson2d(150),ones((2,2))).tobsr(blocksize=(2,2))
+        matrices.append( ('Block2x2', A.tocsr()) )
+        matrices.append( ('Block2x2', A) )
+        
+        A = spkron(poisson2d(100),ones((3,3))).tobsr(blocksize=(3,3))
+        matrices.append( ('Block3x3', A.tocsr()) )
+        matrices.append( ('Block3x3', A) )
 
         print
         print '                 Sparse Matrix Vector Product'
@@ -51,9 +159,15 @@ class TestSparseTools(NumpyTestCase):
             start = time.clock()
             iter = 0
             while iter < 5 or time.clock() < start + 1:
-                y = A*x
+                try:
+                    #avoid creating y if possible
+                    A.matvec(x,y)
+                except:
+                    y = A*x
                 iter += 1
             end = time.clock()
+
+            del y
 
             name = name.center(12)
             shape = ("%s" % (A.shape,)).center(20)
@@ -83,7 +197,7 @@ class TestSparseTools(NumpyTestCase):
                 start = time.clock()
                 
                 iter = 0
-                while time.clock() < start + 0.1:
+                while time.clock() < start + 0.5:
                     T = eval(format + '_matrix')(A.shape)
                     for i,j,v in zip(A.row,A.col,A.data):
                         T[i,j] = v
@@ -138,7 +252,33 @@ class TestSparseTools(NumpyTestCase):
             print output
 
 
-                
+class TestLarge(NumpyTestCase):
+    def check_large(self):
+        # Create a 100x100 matrix with 100 non-zero elements
+        # and play around with it
+        #TODO move this out of Common since it doesn't use spmatrix
+        random.seed(0)
+        A = dok_matrix((100,100))
+        for k in range(100):
+            i = random.randrange(100)
+            j = random.randrange(100)
+            A[i,j] = 1.
+        csr = A.tocsr()
+        csc = A.tocsc()
+        csc2 = csr.tocsc()
+        coo = A.tocoo()
+        csr2 = coo.tocsr()
+        assert_array_equal(A.transpose().todense(), csr.transpose().todense())
+        assert_array_equal(csc.todense(), csr.todense())
+        assert_array_equal(csr.todense(), csr2.todense())
+        assert_array_equal(csr2.todense().transpose(), coo.transpose().todense())
+        assert_array_equal(csr2.todense(), csc2.todense())
+        csr_plus_csc = csr + csc
+        csc_plus_csr = csc + csr
+        assert_array_equal(csr_plus_csc.todense(), (2*A).todense())
+        assert_array_equal(csr_plus_csc.todense(), csc_plus_csr.todense())
+
+
 if __name__ == "__main__":
     NumpyTest().run()
 
