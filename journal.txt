@@ -1,0 +1,83 @@
+# Log in making a new Interpolate module
+
+# The goal
+The current interpolation software is wanting.  My goal is to create a module to 
+replace scipy.interpolate.  Currently functionality is mostly in scipy.interpolate
+and enthought.interpolate.  A few other functions are also in NDImage and 
+signalprocessing.  
+
+First off, I just want to have a good 1D interpolation callable class, along
+with a straight-up function.  It should have functionality for linear, logarithmic,
+block and spline interpolation.  There should also be extrapolation high and low.
+
+# starting off
+The core function was derived from the skeleton written by Eric Jones while we 
+were talking.  It was basically a callable class with __init__ and __call__ methods.
+__init__ would set x and y, and also decide which method (linear, block, etc) to
+use.
+
+I started off scavenging the enthought.interpolate.py functions.  I turned the
+functions into other callable classes, and created functions which are wrappers
+around the classes.  The Interpolate1D.__init__ method should call a subroutine
+which will appropriately deal with the interpolation argument.  It could be a class,
+a function, or a string.  The string was difficult, as I included an instruction to
+import the named class/function.  But this caused a namespace problem, as iPython
+wouldn''t re-import it after editing and calling Interpolate1D again.
+
+# stuff incorporated
+Now I've incorporatd the functionality form interpolate.py as callable classes.
+I have several directions to go.
+1) create tests for all of the functionality incorporated so far.  This would be boring
+    but good practice and really must be done.
+2) add handlers for NaN and non-standard data types.  This also must be done.
+    In particular, there's lists, arrays, and naked atomic types (ints, floats, etc).
+    I think everything should be cast to a numpy array.  But should it be a numpy
+    array of float64?  
+3) incorporate the functionality of fitting.py.  This uses splines and calls
+    scipy.interpolate.  It also uses traits, which is taboo.  I should really revamp
+    the whole thing; it should directly call the fortran subroutines, rather than calling
+    them through scipy.interpolate.  Thus, I should really be scavenging scipy but
+    putting a good face on it.
+    
+There's a question of whether interpolate_helper should include all of these functions
+or should be split into a couple modules.  At least preliminarily, I think several modules
+is a good thing because it makes testing easier.
+
+But for the time being, I'll write a test function for the stuff currently in 
+interpolate_helper.
+
+# July 12 2:18 PM
+the block function is strange; wrong, it appears.  The answers depend on other 
+elements in the argument array.  Block doesn't call C code, so it's more suspect.  
+Perhaps I just don't understand the function
+well enough.  Linear works erfectly, logarithmic seems good too, though it's zero 
+for negative values.  block_average above looks good.
+Window_width has a problem with the C call.  So window_width and block need
+more thought.
+
+Block shows same problem in mine and enthought.interpolate, but the non-function
+thing of block_avg_above is unique to me.
+
+Window_Average has a low-level bug.  I'm scrapping it for now, since it's rarely used
+anyway.  Block comes not from interpolate, but from fitting.  Thus I've gotten all
+interpolate.py functionality included.  Yay.
+
+
+# July 12 5 PM
+moving on to fitting.py.  It has a parent DataFit class whose children call functions in interpolate.py.
+That makes for more pure-function stuff, thanks to interpolate.py.  This has objects
+wrapped around funcs, whereas I have funcs wrapped around objects.  Objects around
+funcs has less overhead (I think) and is more pure-functional, so I'll redo things to
+follow that.
+
+Redoing it amounts to copying interpolate.py over everything I've done.  Damn it.
+But the main function 1) needs assert statement, and 2) needlessly defines x
+and y a lot (though that makes one per function)
+
+
+# July 14
+Looking at DataFit in fitting.py I'm debating how to replicate it.  In
+particular, I don't need set_xy and such.  However, those functions
+allow for more flexibility in future code (setting may be more complicated
+for some descendent class) so they're good.  However, I'm preliminarily
+making that function private; x and y must be initialized.

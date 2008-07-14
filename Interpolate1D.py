@@ -2,7 +2,8 @@
 """
 
 #from enthought.interpolate import DataFit, Linear, Block
-from interpolate_helper import block, linear, block, Linear, Block, logarithmic
+from interpolate_helper import * #block, linear, block, Linear, \
+    #Block, logarithmic, Block_Average_Above, Window_Average
 from numpy import array, arange, empty, float64
 
 
@@ -50,25 +51,25 @@ class Interpolate1D(object):
         self._x = array(x)
         self._y = array(y)
         
-        self.kind = self._init_interp_method(x, y, kind)
-        self.low = self._init_interp_method(x, y, low)
-        self.high = self._init_interp_method(x, y, high)
+        self.kind = self._init_interp_method(self._x, self._y, kind)
+        self.low = self._init_interp_method(self._x, self._y, low)
+        self.high = self._init_interp_method(self._x, self._y, high)
 
     def _init_interp_method(self, x, y, kind):
         from inspect import isclass, isfunction
         
         if isinstance(kind, str):
             try:
-                exec('from interpolate_helper import %s; kind = %s' % (kind, kind) )
+                #fixme: import the object
+                exec('dummy_var = %s' % kind)
             except:
-                raise
+                raise "Could not import indicated class or function"
         
         if isclass(kind):
             result = kind(x, y)
         elif isfunction(kind):
             result = kind
         else:
-            print 'WTF??'
             raise
         return result
     
@@ -89,12 +90,19 @@ class Interpolate1D(object):
         result[interp_mask] = new_interp
         
         return result
+        
+    def __clone__(self):
+        # fixme: objects are currently double-referenced.  Make them copied over.
+        clone_x = self._x.clone()
+        clone_y = self._y.clone()
+        return Interpolate1D(self._x, self._y, low=self.low, kind=self.kind, high=self.high)
 
 if __name__ == '__main__':
+    print "hey world"
     a = arange(10.)
     b = 2*a
     c = array([-1, 4.5, 19])
-    interp = Interpolate1D(a, b, kind=lambda x: linear(a,b,x), \
-        low='Block', high=lambda x: block(a,b,x) )
+    interp = Interpolate1D(a, b, low = 'Block', \
+        kind='Window_Average', high=lambda x: block(a,b,x) )
     print 'c equals: ', c
     print 'interp(c) equals: ', interp(c)                   
