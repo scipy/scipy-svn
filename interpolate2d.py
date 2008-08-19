@@ -36,26 +36,35 @@ dtype_default = np.float64
 
 # functional interface: creates and calls an instance of objective interface
 def interp2d(x, y, z, newx, newy, kind='linear', out=NaN, bad_data=None):
-    return Interpolate2d(x, y, z, kind=kind, out=out, bad_data=bad_data)(newx, newy)
-
-# objective interface
-class Interpolate2d:
-    """ A callable class for interpolation of 1D, real-valued data.
+    """ A function for interpolation of 2D, real-valued data.
         
         Parameters
         -----------
             
-            x -- list or 1D NumPy array
+            x -- list or NumPy array
                 x includes the x-values for the data set to
-                interpolate from.
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
                     
-            y -- list or 1D NumPy array
+            y -- list or NumPy array
                 y includes the y-values for the data set  to
-                interpolate from.
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
                 
             z -- list or 1D NumPy array
                 z includes the z-values for the data set to
-                interpolate from.
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
+                
+            newx -- list or NumPy array
+                newx includes the x-values for the points at
+                which to perform interpolation.  If it is in array, 
+                it must be 1 or 2-dimensional
+            
+            newy  -- list or NumPy array
+                newy includes the y-values for the points at
+                which to perform interpolation.  If it is in array, 
+                it must be 1 or 2-dimensional
                 
         Optional Arguments
         -------------------
@@ -91,6 +100,7 @@ class Interpolate2d:
             "cubic" -- spline interpolation order 3
             "quartic" -- spline interpolation order 4
             "quintic" -- spline interpolation order 5
+            "526" -- TOMS algorithm 526
             
         Other options for kind and out
         ---------------------------------------------------
@@ -131,9 +141,110 @@ class Interpolate2d:
             >>> newx = [.2, 2.3, 2.6, 7.0]
             >>> newy = [1, 1, 1, 1]
             >>> interp_func = Interpolate2d(x, y, z)
-            >>> interp_fuc(newx, newy)
+            >>> interp_func(newx, newy)
             array([1.2, 3.3, 3.6, NaN])
+    """
+    return Interpolate2d(x, y, z, kind=kind, out=out, bad_data=bad_data)(newx, newy)
+
+# objective interface
+class Interpolate2d:
+    """ A callable class for interpolation of 2D, real-valued data.
+        
+        Parameters
+        -----------
             
+            x -- list or NumPy array
+                x includes the x-values for the data set to
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
+                    
+            y -- list or NumPy array
+                y includes the y-values for the data set  to
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
+                
+            z -- list or 1D NumPy array
+                z includes the z-values for the data set to
+                interpolate from.  If it is in array, it must be
+                1 or 2-dimensional
+                
+        Optional Arguments
+        -------------------
+        
+            kind -- Usually a string.  But can be any type.
+                Specifies the type of interpolation to use for values within
+                the range of x.
+                
+                By default, linear interpolation is used.
+                
+                See below for details on other options.
+                
+            out  -- same as for kind
+                How to extrapolate values for outside the rectangle defined by
+                    min(x) <= newx[i] <= max(x)  ,  min(y) <= newy[i] <= max(y)
+                Same options as for 'kind'.  Defaults to returning numpy.NaN ('not 
+                a number') for all values below the region.
+                
+            bad_data -- list of numbers
+                List of numerical values (in x, y or z) which indicate unacceptable data. 
+                
+                If bad_data is not None (its default), all points whose x, y or z coordinate is in
+                bad_data, OR ones of whose coordinates is NaN, will be removed.  Note that
+                bad_data != None means NaNs will be removed even if they are not in
+                bad_data.
+                
+        Some Acceptable Input Strings
+        ------------------------
+        
+            "linear" -- linear interpolation : default
+            "spline" -- spline interpolation of default order
+            "quad", "quadratic" -- spline interpolation order 2
+            "cubic" -- spline interpolation order 3
+            "quartic" -- spline interpolation order 4
+            "quintic" -- spline interpolation order 5
+            "526" -- TOMS algorithm 526
+            
+        Other options for kind and out
+        ---------------------------------------------------
+        
+            If you choose to use a non-string argument, you must
+            be careful to use correct formatting.
+            
+            If a function is passed, it will be called when interpolating.
+            It is assumed to have the form 
+                newz = interp(x, y, z, newx, newy), 
+            where x, y, newx, and newy are all numpy arrays.
+            
+            If a callable class is passed, it is assumed to have format
+                instance = Class(x, y, z).
+            which can then be called by
+                newz = instance(newx, newy)
+            
+            If a callable object with method "init_xyz" or "set_xyz" is
+            passed, that method will be used to set x and y as follows
+                instance.set_xy(x, y)
+            and the object will be called during interpolation.
+                newz = instance(newx, newy)
+            If the "init_xyz" and "set_xyz" are not present, it will be called as
+                newz = argument(x, y, z, newx, newy)
+                
+            A primitive type which is not a string signifies a function
+            which is identically that value (e.g. val and 
+            lambda x, y, newx : val are equivalent).
+            
+        Example
+        ---------
+        
+            >>> import numpy
+            >>> from interpolate import Interpolate2d
+            >>> x = range(5)        # note list is permitted
+            >>> y = numpy.arange(5.)
+            >>> z = x+y
+            >>> newx = [.2, 2.3, 2.6, 7.0]
+            >>> newy = [1, 1, 1, 1]
+            >>> interp_func = Interpolate2d(x, y, z)
+            >>> interp_func(newx, newy)
+            array([1.2, 3.3, 3.6, NaN])
     """
     def __init__(self, x, y, z, kind='linear', out=NaN, bad_data=None):
         
@@ -148,15 +259,15 @@ class Interpolate2d:
         # FIXME : perhaps allow 2D input if it is inthe form of meshgrid
          
         # check acceptable sizes and dimensions
+        # and make data 1D
         x = np.atleast_1d(x)
         y = np.atleast_1d(y)
         z = np.atleast_1d(z)
-        assert len(x) > 0 and len(y) > 0 and len(z)>0, "Arrays cannot be of zero length"
-        assert x.ndim == 1 , "x must be one-dimensional"
-        assert y.ndim == 1 , "y must be one-dimensional"
-        assert z.ndim == 1 , "z must be one-dimensional" 
-        assert len(x) == len(y) , "x and y must be of the same length"
-        assert len(x) == len(z) , "x and z must be of the same length"
+        assert x.shape == y.shape, "x and y must be the same shape"
+        assert x.shape == z.shape, "z must be the same shape as x and y"
+        assert x.ndim in [1, 2], "x and y must be at most 2-dimensional"
+        assert np.size(x) >= 0, "x, y and z cannot be of size zero"
+        x, y, z = map(np.ravel, [x, y, z])
         
         # remove bad data if applicable
         if bad_data is not None:
@@ -246,18 +357,22 @@ class Interpolate2d:
                                 isinstance(  newx , np.ndarray  ) and np.shape(newx) == () or \
                                 isinstance(  newy , np.ndarray  ) and np.shape(newy) == ()
         
-        # make input into a nice 1d, contiguous array
-        newx = atleast_1d_and_contiguous(newx, dtype=self._xdtype)
-        newy = atleast_1d_and_contiguous(newy, dtype=self._ydtype)
-        assert newx.ndim == 1, "newx can be at most 1-dimensional"
-        assert newy.ndim == 1, "newy can be at most 1-dimensional"
-        assert len(newx) == len(newy), "newx and newy must be the same length"
+        # check acceptable sizes and dimensions, record the shape of the input,
+        # and make data 1D
+        newx = np.atleast_1d(newx)
+        newy = np.atleast_1d(newy)
+        assert newx.shape == newy.shape, "newx and newy must be the same shape"
+        assert newx.ndim in [1, 2], "newx and newy must be at most 2-dimensional"
+        assert np.size(newx) >= 0, "newx and newy must be of size greater than zero"
+        shape_of_newx = newx.shape
+        newx, newy= map(np.ravel, [newx, newy])
         
+        # finding which points are in the valid interpolation range
         in_range_mask = (min(self._x) <= newx)  & (newx <= max(self._x)) & \
                                 (min(self._y) <= newy) & (newy <= max(self._y))        
         
-        # filling array of interpolated z-values
-        result = np.zeros(np.shape(newx), dtype = self._zdtype)
+        # making array of interpolated z-values
+        result = np.empty(np.shape(newx), dtype = self._zdtype)
         if sum(in_range_mask) > 0:  # if there are in-range values.  hack to deal
                                                # with behavior of np.vectorize on arrays of length 0
             result[in_range_mask] = self.kind(newx[in_range_mask], newy[in_range_mask])        
@@ -267,5 +382,7 @@ class Interpolate2d:
         # revert to scalar if applicable
         if input_is_scalar:
             result = result[0]
+        else:
+            result = np.reshape(result, shape_of_newx)
         
         return result

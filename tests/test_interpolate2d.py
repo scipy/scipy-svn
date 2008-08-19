@@ -17,7 +17,72 @@ class Test(unittest.TestCase):
     
     def assertAllclose(self, x, y):
         self.assert_(np.allclose(atleast_1d_and_contiguous(x), atleast_1d_and_contiguous(y)))
+     
+    def test_string_linear(self):
+        """ make sure : string 'linear' works
+        """
+        N = 7
+        X, Y = meshgrid(arange(N), arange(N))
+        Z = X + Y
+        x, y, z = map(ravel, [X, Y, Z] )
         
+        newx = np.arange(1, N)-0.5
+        newy = newx
+        
+        interp_func = Interpolate2d(x, y, z, kind='linear', out='linear')
+        newz = interp_func(newx, newy)
+        
+        self.assertAllclose(newz, newx+newy)
+        
+    def test_string_quadratic(self):
+        """ make sure : string 'quadratic' works
+        """
+        N = 7
+        X, Y = meshgrid(arange(N), arange(N))
+        Z = X + Y
+        x, y, z = map(ravel, [X, Y, Z] )
+        
+        newx = np.arange(1, N)-0.5
+        newy = newx
+        
+        interp_func = Interpolate2d(x, y, z, kind='quadratic', out='quad')
+        newz = interp_func(newx, newy)
+        
+        self.assertAllclose(newz, newx+newy)
+        
+    def test_string_cubic(self):
+        """make sure : string "cubic" works
+        """
+        N = 7
+        X, Y = meshgrid(arange(N), arange(N))
+        Z = X + Y
+        x, y, z = map(ravel, [X, Y, Z] )
+        
+        newx = np.arange(1, N)-0.5
+        newy = newx
+        
+        interp_func = Interpolate2d(x, y, z, kind='cubic', out='cubic')
+        newz = interp_func(newx, newy)
+        
+        self.assertAllclose(newz, newx+newy)
+        
+    def test_string_526(self):
+        """ make sure : keyword '526' works
+            ie that TOMS algorithm 526 works
+        """
+        N = 7
+        X, Y = meshgrid(arange(N), arange(N))
+        Z = X + Y
+        x, y, z = map(ravel, [X, Y, Z] )
+        
+        newx = np.arange(1, N)-0.5
+        newy = newx
+        
+        interp_func = Interpolate2d(x, y, z, kind='526', out='526')
+        newz = interp_func(newx, newy)
+        
+        self.assertAllclose(newz, newx+newy)
+
     def test_callable_class_interpolation(self):
         """ make sure : instance of callable class with xyz not initiated works
         """
@@ -126,67 +191,18 @@ class Test(unittest.TestCase):
         self.assert_( np.isnan(newz[0]) )
         self.assert_( np.isnan(newz[-1]) )
         
-    def test_string_linear(self):
-        """ make sure : string 'linear' works
+    
+    def test_2D_input(self):
+        """ make sure : newx and newy can be 2D, and the result is also 2D
         """
         N = 7
         X, Y = meshgrid(arange(N), arange(N))
         Z = X + Y
         x, y, z = map(ravel, [X, Y, Z] )
         
-        newx = np.arange(1, N)-0.5
-        newy = newx
+        newx, newy = meshgrid(arange(1, N)-.2, arange(1,N)-.2)
         
         interp_func = Interpolate2d(x, y, z, kind='linear', out='linear')
-        newz = interp_func(newx, newy)
-        
-        self.assertAllclose(newz, newx+newy)
-        
-    def test_string_quadratic(self):
-        """ make sure : string 'quadratic' works
-        """
-        N = 7
-        X, Y = meshgrid(arange(N), arange(N))
-        Z = X + Y
-        x, y, z = map(ravel, [X, Y, Z] )
-        
-        newx = np.arange(1, N)-0.5
-        newy = newx
-        
-        interp_func = Interpolate2d(x, y, z, kind='quadratic', out='quad')
-        newz = interp_func(newx, newy)
-        
-        self.assertAllclose(newz, newx+newy)
-        
-    def test_string_cubic(self):
-        """make sure : string "cubic" works
-        """
-        N = 7
-        X, Y = meshgrid(arange(N), arange(N))
-        Z = X + Y
-        x, y, z = map(ravel, [X, Y, Z] )
-        
-        newx = np.arange(1, N)-0.5
-        newy = newx
-        
-        interp_func = Interpolate2d(x, y, z, kind='cubic', out='cubic')
-        newz = interp_func(newx, newy)
-        
-        self.assertAllclose(newz, newx+newy)
-        
-    def test_string_526(self):
-        """ make sure : keyword '526' works
-            ie that TOMS algorithm 526 works
-        """
-        N = 7
-        X, Y = meshgrid(arange(N), arange(N))
-        Z = X + Y
-        x, y, z = map(ravel, [X, Y, Z] )
-        
-        newx = np.arange(1, N)-0.5
-        newy = newx
-        
-        interp_func = Interpolate2d(x, y, z, kind='526', out='526')
         newz = interp_func(newx, newy)
         
         self.assertAllclose(newz, newx+newy)

@@ -164,7 +164,7 @@ class Interpolate1d(object):
                 interpolate from.  Note that 2-dimensional
                 y is not supported.
             
-            newx -- list of 1D numpy array
+            newx (when calling) -- list of 1D numpy array
                 x values at which to interpolate the value
                 of the function
                 

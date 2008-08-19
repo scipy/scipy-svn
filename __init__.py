@@ -18,3 +18,5 @@ from fitpack_wrapper import Spline
 # wrapper around Fortran implementing Tom's algorithm 526
 from algorithm526_wrapper import algorithm526
 
+from interpSNd import InterpolateSNd
+

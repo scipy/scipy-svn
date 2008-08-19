@@ -166,9 +166,9 @@ using bad_data removed both those points, so the entire range of x is linearly
 interpolated.
 
 
---------------------------------------
+-----------------------------------------------------------
 User-defined Interpolation Methods
---------------------------------------
+-----------------------------------------------------------
 
 The string interface is designed to conveniently take care of most things a user would want
 to do in a way that is easy and, when something goes wrong, informative and helpful.
@@ -579,8 +579,8 @@ The functional interface is completely analogous to that for interp1d: ::
 
     newz = interp2d(x, y, z, newx, newy, kind='linear', out=NaN)
 
-where x, y, z, are 1D arrays or lists, and newx and newy may be either arrays, lists or scalars.  
-If they are scalars or zero-dimensional arrays, newz will be a scalar as well.  Otherwise
+where x, y, z, are arrays (1D or 2D) or lists, and newx and newy may be either arrays, lists or scalars.  
+If newx and newy are scalars or zero-dimensional arrays, newz will be a scalar as well.  Otherwise
 a vector is returned.  The only differences from intper1d are
 
 #) The known data points are specified by 3 arrays (x, y and z) rather than 2 (x and y).
@@ -737,8 +737,22 @@ Finally, removal of bad data points is not supported for ND interpolation.
 ND Scattered Interpolation
 ================================================
  
- Still in development.
+Still in development.
  
- Ideally the range of interpolation would be the convex hull of the known
- data points, and a Delaunay tesselation would be determined and stored
- at instantiation.  Then again, that would be very expensive.
+Ideally the range of interpolation would be the convex hull of the known
+data points, and a Delaunay tesselation would be determined and stored
+at instantiation.  Then again, that would be very expensive.
+ 
+InterpolateNd suffers from the requirement that data points be on a uniformly
+spaced grid.  This problem is solved by the callable class InterpolateSNd and
+the function interpSNd, which interpolate *scattered* N-dimensional data.
+
+First off a warning.  The code is in a rather preliminary stage which, while functioning,
+is VERY slow and not extensively tested.  This state of affairs is still being improved.
+
+The valid interpolation range is the convex hull of the data points.
+
+
+ 
+ 
+This functionality is still preliminary.

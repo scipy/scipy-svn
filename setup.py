@@ -46,10 +46,12 @@ def configuration(parent_package='',top_path=None):
                                         'extensions/interp_526.f']
                         )
                         
+    # include tutorial on the module
     config.add_data_dir('docs')
 
     return config
 
 if __name__ == '__main__':
+    #from setuptools import setup
     from numpy.distutils.core import setup
     setup(**configuration().todict())
