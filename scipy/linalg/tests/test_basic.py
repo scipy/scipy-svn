@@ -562,6 +562,17 @@ class TestNorm(object):
         assert_equal(norm([1,0,3], 0), 2)
         assert_equal(norm([1,2,3], 0), 3)
 
+    def test_overflow(self):
+        # unlike numpy's norm, this one is
+        # safe on overflow
+        a = array([1e20], dtype=float32)
+        assert_almost_equal(norm(a), a)
+
+    def test_stable(self):
+        # more stable than numpy's norm
+        a = array([1e4] + [1]*10000, dtype=float32)
+        assert_almost_equal(norm(a) - 1e4, 0.5)
+
 class TestOverwrite(object):
     def test_solve(self):
         assert_no_overwrite(solve, [(3,3), (3,)])
